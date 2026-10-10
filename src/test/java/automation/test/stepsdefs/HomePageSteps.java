@@ -13,23 +13,18 @@ import org.openqa.selenium.support.PageFactory;
 
 public class HomePageSteps {
     private final HomePage homePage = new HomePage();
+    private final WebDriver driver = Driver.get();
 
     @Given("I am on the login page")
     public void iAmOnTheLoginPage() {
         Logs.info("Initializing browser and environment");
 
-        // centralized init
-        Hooks.initPage(homePage);
+        BrowserUtils.waitForPageToLoad(10);
 
-        WebDriver driver = Driver.get();
-        if (driver == null) {
-            throw new RuntimeException("WebDriver is null. Ensure Driver is initialized before running steps.");
-        }
-
-        String expectedUrl = "https://www.automationexercise.com/";
+        String expectedUrl = "https://www.saucedemo.com/";
         // navigate explicitly if not already on the site
         try {
-            if (driver.getCurrentUrl() == null || !driver.getCurrentUrl().contains("automationexercise")) {
+            if (driver.getCurrentUrl() == null || !driver.getCurrentUrl().equalsIgnoreCase(expectedUrl)) {
                 driver.get(expectedUrl);
             }
             BrowserUtils.waitForPageToLoad(10);
@@ -37,8 +32,8 @@ public class HomePageSteps {
             throw new RuntimeException("Failed to navigate to base URL: " + e.getMessage(), e);
         }
 
-        Assert.assertTrue("Expected URL to contain automationexercise", driver.getCurrentUrl().contains("automationexercise"));
-        Logs.test("Automation Exercise".equals(driver.getTitle()),"Landed on Home page");
+        Assert.assertTrue("Expected URL to be correct", driver.getCurrentUrl().equalsIgnoreCase(expectedUrl));
+        Logs.test("Swag Labs".equals(driver.getTitle()),"Landed on Home page");
     }
 
     @When("I click {string} button")

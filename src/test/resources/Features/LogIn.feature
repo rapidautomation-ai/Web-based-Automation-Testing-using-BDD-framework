@@ -1,10 +1,10 @@
 Feature: Log in to the site
 
-  @login1
+  @login
   Scenario Outline: Successful log in with valid credentials
     Given I am on the login page
-    When I click "SignUp/Login" button
-    And I enter valid "<email>" and "<password>"
+    # When I click "SignUp/Login" button
+    When I enter valid "<username>" and "<password>"
     Examples:
-      | email               | password    |
-      | student123@job.com  | 12345678    |
+      | username       | password     |
+      | standard_user  | secret_sauce |

@@ -14,21 +14,16 @@ import org.openqa.selenium.safari.SafariDriver;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 
 public class Driver {
 
     private Driver(){}
 
-    // per-thread WebDriver
-    private static final ThreadLocal<WebDriver> driverThreadLocal = new ThreadLocal<>();
+    // Shared WebDriver for all step-definition classes in the active scenario.
+    public static volatile WebDriver driver;
 
     // optional per-thread browser override (set from Hooks)
     private static final ThreadLocal<String> browserThreadLocal = new ThreadLocal<>();
-
-    // track created drivers for best-effort global cleanup
-    private static final Set<WebDriver> allDrivers = ConcurrentHashMap.newKeySet();
 
     // ensure JVM shutdown attempts cleanup
 //    static {
@@ -49,7 +44,6 @@ public class Driver {
     }
 
     public static synchronized WebDriver get(){
-        WebDriver driver = driverThreadLocal.get();
         if (driver != null) {
             return driver;
         }
@@ -65,7 +59,7 @@ public class Driver {
         if (browser == null) browser = "chrome";
         browser = browser.trim().toLowerCase();
 
-        String baseUrl = ConfigurationReader.get("baseUrl", "https://www.automationexercise.com/");
+        String baseUrl = ConfigurationReader.get("baseUrl", "https://www.saucedemo.com/");
         boolean autoNavigate = "true".equalsIgnoreCase(ConfigurationReader.get("autoNavigate", "true"));
 
         try {
@@ -153,18 +147,13 @@ public class Driver {
                 }
             } catch (Exception ignored) {}
 
-            // store in threadlocal and tracked set
-            driverThreadLocal.set(driver);
-            allDrivers.add(driver);
-
             // navigate automatically if requested
             if (autoNavigate && baseUrl != null && !baseUrl.isEmpty()) {
                 try {
                     driver.get(baseUrl);
                 } catch (Exception navEx) {
                     try { driver.quit(); } catch (Exception ignored) {}
-                    driverThreadLocal.remove();
-                    allDrivers.remove(driver);
+                    driver = null;
                     throw new RuntimeException("Failed to navigate to baseUrl='" + baseUrl + "'", navEx);
                 }
             }
@@ -172,36 +161,31 @@ public class Driver {
             return driver;
 
         } catch (Exception e) {
-            // ensure thread local cleanup on failure
-            driverThreadLocal.remove();
+            driver = null;
             throw new RuntimeException("Failed to initialize WebDriver for browser='" + browser + "': " + e.getMessage(), e);
         }
     }
 
-    // close and clear the thread-local driver
+    // close and clear the shared driver
     public static synchronized void closeDriver(){
-        WebDriver driver = driverThreadLocal.get();
         if(driver != null){
             try {
                 driver.quit();
             } catch (Exception ignored) {}
-            driverThreadLocal.remove();
-            allDrivers.remove(driver);
+            driver = null;
         }
         // also clear browser override for this thread
         browserThreadLocal.remove();
     }
 
-    // best-effort: close any remaining drivers across threads
+    // best-effort: close the shared driver
     public static synchronized void closeAll() {
-        for (WebDriver d : allDrivers) {
-            if (d == null) continue;
+        if (driver != null) {
             try {
-                d.quit();
+                driver.quit();
             } catch (Exception ignored) {}
         }
-        allDrivers.clear();
-        driverThreadLocal.remove();
+        driver = null;
         browserThreadLocal.remove();
     }
 }
